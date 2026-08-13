@@ -18,3 +18,6 @@ go-api/*.exe
 .vscode/
 .idea/
 *.log
+
+# Material del enunciado original (no se publica en el repo)
+docs/

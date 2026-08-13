@@ -12,7 +12,7 @@ Dos APIs comunicadas por HTTP:
 
 Las decisiones ante ambigüedades del enunciado (QR vs. rotación, algoritmo de
 factorización, diseño de JWT, topología de despliegue) están documentadas en
-[`docs/decisiones-arquitectura.md`](docs/decisiones-arquitectura.md).
+la sección [Decisiones de arquitectura](#decisiones-de-arquitectura).
 
 ## Arquitectura
 
@@ -34,7 +34,6 @@ Usuario ──▶ frontend (React/Vite)
 go-api/       API en Go (Fiber) — factorización QR
 node-api/     API en Node.js (Express + TS) — estadísticas + emisión de JWT
 frontend/     SPA en React + Vite + TS + Tailwind
-docs/         Enunciado original + decisiones de arquitectura
 docker-compose.yml   Levanta las 3 apps localmente
 render.yaml           Blueprint de despliegue en Render
 ```
@@ -196,3 +195,101 @@ Render (2 "Web Service" con runtime Docker apuntando a
 command `cd frontend && npm ci && npm run build` y publish directory
 `frontend/dist`), configurando las mismas variables de entorno de la tabla
 de arriba.
+
+## Decisiones de arquitectura
+
+Este apartado sustenta las decisiones tomadas ante ambigüedades del
+enunciado, tal como el propio reto pide justificar en la entrevista.
+
+### 1. Factorización QR vs. "rotación de la matriz"
+
+El enunciado es inconsistente entre dos secciones: la descripción general de
+arquitectura pide que la API de Go "realice la rotación de la matriz",
+mientras que la sección de "Funcionalidad requerida" (más específica) pide
+que "reciba una matriz rectangular y devuelva la factorización QR de dicha
+matriz".
+
+**Decisión: se implementó la factorización QR.** La sección de
+funcionalidad requerida define un contrato de entrada/salida explícito y es
+la fuente más específica y operativa; la descripción general es un resumen
+narrativo, más propenso a imprecisión de redacción. Ante una contradicción
+entre un resumen general y una especificación detallada, se prioriza la
+especificación detallada.
+
+### 2. Householder vs. Gram-Schmidt para la factorización QR
+
+Se evaluaron dos algoritmos clásicos:
+
+| Criterio | Householder | Gram-Schmidt modificado (MGS) |
+|---|---|---|
+| Estabilidad numérica | Alta (estándar en LAPACK/numpy) | Media (mejor que GS clásico, pero inferior a Householder) |
+| Complejidad de implementación | ~120 líneas con casos borde | Similar |
+| Manejo de rango deficiente | Se detecta por norma casi nula del vector reflejado | Se detecta por norma casi nula al normalizar |
+
+**Decisión: Householder reflections.** Mismo costo de implementación que
+MGS, pero con mejor estabilidad numérica — es la elección estándar en
+implementaciones de referencia (LAPACK, NumPy `linalg.qr`).
+
+**Caso `m < n` (menos filas que columnas):** se rechaza con un error 400
+(`ErrTooFewRows`) en vez de transponer la matriz silenciosamente. Transponer
+cambiaría la semántica de lo que el usuario envió; el enunciado no pide ese
+comportamiento, así que un input inválido debe fallar explícitamente, no
+transformarse en otra cosa.
+
+### 3. Diseño de autenticación JWT
+
+- Un único emisor de tokens: `POST /auth/token` en la API de Node, con
+  credenciales demo fijas por variable de entorno (`DEMO_CLIENT_ID` /
+  `DEMO_CLIENT_SECRET`), ya que el enunciado no define un modelo de usuarios
+  (el requisito literal es solo "aplicar un nivel de seguridad utilizando
+  JWT para proteger las consultas a las APIs").
+- La API de Go **no** llama a ese endpoint para su comunicación interna con
+  Node: firma su propio JWT de servicio (`IssueServiceToken`) con el mismo
+  `JWT_SECRET` compartido. Evita una llamada HTTP adicional y un punto de
+  fallo extra en cada request de usuario.
+- Secreto simétrico HS256 vía variable de entorno — no se justifica un par
+  de claves RS256 para este alcance (no hay múltiples emisores ni necesidad
+  de verificación pública del token).
+- Expiración de 1 hora para tokens de usuario/demo, 5 minutos para tokens de
+  servicio (de vida más corta porque se emiten y consumen en el mismo
+  request).
+- Mensaje de error 401 uniforme (`"missing or invalid authorization token"`)
+  en ambas APIs para que el frontend maneje un solo caso.
+- El token del frontend se cachea en `localStorage` (con verificación de
+  expiración al cargar) para sobrevivir a un refresh de página — mejora de
+  UX, no un requisito del reto.
+
+### 4. Topología de despliegue en Render
+
+Se desplegaron 3 servicios independientes en vez de empaquetar el frontend
+dentro del contenedor de Node:
+
+- `interseguro-go-api` y `interseguro-node-api`: servicios web Docker.
+- `interseguro-frontend`: **Static Site** nativo de Render (build de Vite,
+  sin Docker).
+
+Empaquetar el frontend como archivos estáticos servidos por Express habría
+evitado un tercer dominio, pero mezcla la responsabilidad de servir una SPA
+con la de una API de negocio, y los Static Sites de Render son gratuitos y
+más simples de configurar (build command + publish dir, sin Dockerfile). El
+costo es que ambas APIs necesitan CORS habilitado hacia el origen del
+frontend — un middleware que de todas formas era necesario.
+
+### 5. Sin capa de repositorio ni gestor de estado global en el frontend
+
+Ambas APIs son completamente stateless (no hay persistencia), por lo que no
+se agregó una capa de repositorio/DAO — habría sido una abstracción sin
+propósito. De la misma forma, el frontend usa `useState` local en `App.tsx`
+en vez de Redux/Zustand/Context: hay dos piezas de estado (`token`,
+`result`) en una sola pantalla, lo cual no justifica un gestor de estado
+global.
+
+### 6. Tipado y stack de cada servicio
+
+Decisión explícita: tipar todo el stack. Go es tipado por naturaleza; la API
+de Node se escribió en TypeScript (compilada a `dist/` para producción) y el
+frontend usa el template Vite `react-ts`. Los tipos de dominio (`Matrix`,
+`StatsResponse`, `QrResponse`, `TokenResponse`) se duplican entre
+`node-api/src/types` y `frontend/src/types` sin un paquete compartido — una
+decisión consciente para no introducir un monorepo con gestión de paquetes
+(ej. workspaces) solo para 4 interfaces, dado el alcance del challenge.
