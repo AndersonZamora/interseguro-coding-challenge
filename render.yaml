@@ -1,0 +1,54 @@
+# Blueprint de despliegue en Render (https://render.com/docs/blueprint-spec).
+# 3 servicios: 2 APIs Docker + 1 Static Site para el frontend (Vite build).
+#
+# Algunas variables dependen de la URL publica que Render asigna a cada
+# servicio (solo se conoce despues del primer deploy), asi que quedan
+# marcadas "sync: false" para completarlas a mano. Ver el checklist de
+# despliegue en README.md antes de aplicar este blueprint.
+services:
+  - type: web
+    name: interseguro-node-api
+    runtime: docker
+    dockerfilePath: ./node-api/Dockerfile
+    dockerContext: ./node-api
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEMO_CLIENT_ID
+        value: interseguro-demo
+      - key: DEMO_CLIENT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGIN
+        sync: false # URL publica del static site del frontend, ej. https://interseguro-frontend.onrender.com
+
+  - type: web
+    name: interseguro-go-api
+    runtime: docker
+    dockerfilePath: ./go-api/Dockerfile
+    dockerContext: ./go-api
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: JWT_SECRET
+        sync: false # debe ser IDENTICO al JWT_SECRET generado para interseguro-node-api
+      - key: NODE_API_URL
+        sync: false # URL publica de interseguro-node-api, ej. https://interseguro-node-api.onrender.com
+      - key: ALLOWED_ORIGIN
+        sync: false # URL publica del static site del frontend
+
+  - type: web
+    name: interseguro-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      - key: VITE_GO_API_URL
+        sync: false # URL publica de interseguro-go-api
+      - key: VITE_NODE_API_URL
+        sync: false # URL publica de interseguro-node-api

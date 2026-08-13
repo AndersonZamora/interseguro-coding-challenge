@@ -1,0 +1,19 @@
+# Env files (nunca commitear secretos reales)
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Go
+go-api/api
+go-api/*.exe
+
+# Editores / OS
+.DS_Store
+.vscode/
+.idea/
+*.log
