@@ -14,6 +14,20 @@ Las decisiones ante ambigüedades del enunciado (QR vs. rotación, algoritmo de
 factorización, diseño de JWT, topología de despliegue) están documentadas en
 la sección [Decisiones de arquitectura](#decisiones-de-arquitectura).
 
+## Demo en producción (Render)
+
+- **Frontend**: https://interseguro-frontend-sbae.onrender.com
+- **API Go**: https://interseguro-go-api-hyyb.onrender.com
+- **API Node**: https://interseguro-node-api-1p3b.onrender.com
+
+Las credenciales demo (`client_id` / `client_secret` para `POST /auth/token`)
+se comparten por separado, no se incluyen en este repositorio público.
+
+> Nota: los servicios están en el plan free de Render, que suspende las
+> instancias tras un período de inactividad. La primera petición después de
+> un tiempo sin uso puede tardar ~30-50s en responder mientras el servicio
+> arranca de nuevo.
+
 ## Arquitectura
 
 ```
