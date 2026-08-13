@@ -10,7 +10,7 @@ services:
       - DEMO_CLIENT_SECRET=${DEMO_CLIENT_SECRET}
       - ALLOWED_ORIGIN=${ALLOWED_ORIGIN}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -28,7 +28,7 @@ services:
       node-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 3s
       retries: 3

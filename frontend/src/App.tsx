@@ -4,10 +4,22 @@ import MatrixInput from './components/MatrixInput';
 import QRResult from './components/QRResult';
 import StatsResult from './components/StatsResult';
 import { QrResponse } from './types';
+import { cacheToken, clearCachedToken, loadCachedToken } from './utils/token';
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => loadCachedToken());
   const [result, setResult] = useState<QrResponse | null>(null);
+
+  function handleToken(newToken: string) {
+    cacheToken(newToken);
+    setToken(newToken);
+  }
+
+  function handleLogout() {
+    clearCachedToken();
+    setToken(null);
+    setResult(null);
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
@@ -18,7 +30,7 @@ export default function App() {
         </p>
       </header>
 
-      <LoginPanel token={token} onToken={setToken} />
+      <LoginPanel token={token} onToken={handleToken} onLogout={handleLogout} />
       <MatrixInput token={token} onResult={setResult} />
 
       {result && (

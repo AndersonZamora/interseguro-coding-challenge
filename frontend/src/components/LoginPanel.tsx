@@ -4,9 +4,10 @@ import { fetchToken } from '../api';
 interface Props {
   token: string | null;
   onToken: (token: string) => void;
+  onLogout: () => void;
 }
 
-export default function LoginPanel({ token, onToken }: Props) {
+export default function LoginPanel({ token, onToken, onLogout }: Props) {
   const [clientId, setClientId] = useState('interseguro-demo');
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,14 @@ export default function LoginPanel({ token, onToken }: Props) {
         >
           {loading ? 'Obteniendo…' : 'Obtener token'}
         </button>
-        {token && <span className="text-sm text-green-700">✓ Token obtenido</span>}
+        {token && (
+          <span className="flex items-center gap-2 text-sm text-green-700">
+            ✓ Token obtenido
+            <button className="text-slate-500 underline hover:text-slate-700" onClick={onLogout}>
+              cerrar sesión
+            </button>
+          </span>
+        )}
       </div>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </section>

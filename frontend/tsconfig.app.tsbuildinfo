@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/loginpanel.tsx","./src/components/matrixinput.tsx","./src/components/matrixtable.tsx","./src/components/qrresult.tsx","./src/components/statsresult.tsx","./src/types/index.ts"],"version":"5.9.3"}
